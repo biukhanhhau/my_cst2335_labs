@@ -11,40 +11,104 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Lab 6 - ListView',
+      title: 'Lab 6',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const Week6Lab(),
+      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class Week6Lab extends StatelessWidget {
-  const Week6Lab({super.key});
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key, required this.title});
+  final String title;
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  final List<String> _itemNames = [];
+  final List<String> _itemQtys = [];
+
+  final TextEditingController _itemController = TextEditingController();
+  final TextEditingController _qtyController = TextEditingController();
+
+  // add function
+  void _addItem() {
+    if (_itemController.text.isNotEmpty && _qtyController.text.isNotEmpty) {
+      setState(() {
+        // take data from filled form
+        _itemNames.add(_itemController.text);
+        _itemQtys.add(_qtyController.text);
+      });
+      // delete after adding
+      _itemController.clear();
+      _qtyController.clear();
+    }
+  }
 
 
-  final List<String> monthNames = const [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
-
-  // show analog function
-  void _showMonthDialog(BuildContext context, String month) {
+  void _showDeleteDialog(int index) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Month Selected'),
-          content: Text('You clicked on $month.'),
+          title: const Text('Delete Item?'),
+          content: Text('Are you sure you want to delete ${_itemNames[index]}?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
               },
-              child: const Text('OK'),
+              child: const Text('No'),
+            ),
+            TextButton(
+              onPressed: () {
+                setState(() {
+                  _itemNames.removeAt(index);
+                  _itemQtys.removeAt(index);
+                });
+                Navigator.pop(context);
+              },
+              child: const Text('Yes'),
             ),
           ],
+        );
+      },
+    );
+  }
+
+
+  Widget ListPage() {
+    if (_itemNames.isEmpty) {
+      return const Center(
+        child: Text(
+          "There are no items in the list",
+          style: TextStyle(fontSize: 16),
+        ),
+      );
+    }
+
+
+    return ListView.builder(
+      itemCount: _itemNames.length,
+      itemBuilder: (context, index) {
+        return InkWell(
+          onLongPress: () {
+            _showDeleteDialog(index);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('${index + 1}: ${_itemNames[index]}', style: const TextStyle(fontSize: 16)),
+                Text('quantity: ${_itemQtys[index]}', style: const TextStyle(fontSize: 16)),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -54,23 +118,47 @@ class Week6Lab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Months of the Year'),
+        title: Text(widget.title),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: ListView.separated(
-        itemCount: monthNames.length,
-        itemBuilder: (context, index) {
-          // create each row in below month list
-          return ListTile(
-            title: Text(monthNames[index], style: const TextStyle(fontSize: 18)),
-            onTap: () {
-              _showMonthDialog(context, monthNames[index]);
-            },
-          );
-        },
-        separatorBuilder: (context, index) {
-          return const Divider(height: 1, color: Colors.grey);
-        },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _itemController,
+                    decoration: const InputDecoration(
+                      hintText: "Type the item here",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _qtyController,
+                    decoration: const InputDecoration(
+                      hintText: "Type the quantity here",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: _addItem,
+                  child: const Text("Click here"),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: ListPage(),
+          ),
+        ],
       ),
     );
   }
