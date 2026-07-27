@@ -12,11 +12,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Lab 7',
+      title: 'Lab 9',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Master-Detail Layout'),
     );
   }
 }
@@ -37,9 +37,12 @@ class _MyHomePageState extends State<MyHomePage> {
 
   late ShoppingItemDao dao;
 
+  ShoppingItem? selectedItem = null;
+
   @override
   void initState() {
     super.initState();
+    // Create database
     $FloorAppDatabase.databaseBuilder('app_database.db').build().then((database) {
       dao = database.shoppingItemDao;
       dao.findAllItems().then((list) {
@@ -50,18 +53,14 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  // add function
   void _addItem() {
     if (_itemController.text.isNotEmpty && _qtyController.text.isNotEmpty) {
-
-      //create new Object
       final newItem = ShoppingItem(
           ShoppingItem.ID,
           _itemController.text,
           _qtyController.text
       );
 
-      // add to DB and setState again
       dao.insertItem(newItem).then((_) {
         dao.findAllItems().then((list) {
           setState(() {
@@ -70,52 +69,15 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       });
 
-      // delete after adding
       _itemController.clear();
       _qtyController.clear();
     }
   }
 
-  void _showDeleteDialog(ShoppingItem item) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Item?'),
-          content: Text('Are you sure you want to delete ${item.name}?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('No'),
-            ),
-            TextButton(
-              onPressed: () {
-                dao.deleteItem(item).then((_) {
-                  dao.findAllItems().then((list) {
-                    setState(() {
-                      _shoppingList = list;
-                    });
-                  });
-                });
-                Navigator.pop(context);
-              },
-              child: const Text('Yes'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   Widget ListPage() {
     if (_shoppingList.isEmpty) {
       return const Center(
-        child: Text(
-          "There are no items in the list",
-          style: TextStyle(fontSize: 16),
-        ),
+        child: Text("There are no items in the list", style: TextStyle(fontSize: 16)),
       );
     }
 
@@ -123,13 +85,14 @@ class _MyHomePageState extends State<MyHomePage> {
       itemCount: _shoppingList.length,
       itemBuilder: (context, index) {
         final item = _shoppingList[index];
-
         return InkWell(
-          onLongPress: () {
-            _showDeleteDialog(item);
+          onTap: () {
+            setState(() {
+              selectedItem = item;
+            });
           },
           child: Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(16.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -141,6 +104,96 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       },
     );
+  }
+
+  // show item details
+  Widget DetailsPage() {
+    if (selectedItem == null) {
+      return const Center(child: Text("Select an item from the list"));
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(16.0),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text("Item Details", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+            const Divider(),
+            // Hiển thị ID, Tên, Số lượng
+            Text('ID: ${selectedItem!.id}', style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 10),
+            Text('Name: ${selectedItem!.name}', style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 10),
+            Text('Quantity: ${selectedItem!.quantity}', style: const TextStyle(fontSize: 18)),
+            const SizedBox(height: 30),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                // delete item
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                  onPressed: () {
+                    dao.deleteItem(selectedItem!).then((_) {
+                      dao.findAllItems().then((list) {
+                        setState(() {
+                          _shoppingList = list;
+                          selectedItem = null;
+                        });
+                      });
+                    });
+                  },
+                  child: const Text("Delete", style: TextStyle(color: Colors.white)),
+                ),
+                // close button
+                ElevatedButton(
+                  onPressed: () {
+                    setState(() {
+                      selectedItem = null;
+                    });
+                  },
+                  child: const Text("Close"),
+                ),
+              ],
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Layout function
+
+  Widget reactiveLayout() {
+    var size = MediaQuery.of(context).size;
+    var height = size.height;
+    var width = size.width;
+
+    // Landscape mode
+    if ((width > height) && (width > 720)) {
+      return Row(
+        children: [
+          Expanded(
+            flex: 1,
+            child: ListPage(),
+          ),
+          Expanded(
+            flex: 1,
+            child: DetailsPage(),
+          ),
+        ],
+      );
+    }
+    // turn on portrait mode
+    else {
+      if (selectedItem == null) {
+        return ListPage(); // show list if didn't choose
+      } else {
+        return DetailsPage(); // show Details Page
+      }
+    }
   }
 
   @override
@@ -159,33 +212,27 @@ class _MyHomePageState extends State<MyHomePage> {
                 Expanded(
                   child: TextField(
                     controller: _itemController,
-                    decoration: const InputDecoration(
-                      hintText: "Type the item here",
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(hintText: "Item", border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _qtyController,
-                    decoration: const InputDecoration(
-                      hintText: "Type the quantity here",
-                      border: OutlineInputBorder(),
-                    ),
+                    decoration: const InputDecoration(hintText: "Quantity", border: OutlineInputBorder()),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
                   onPressed: _addItem,
-                  child: const Text("Click here"),
+                  child: const Text("Add"),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: ListPage(),
+            child: reactiveLayout(), // call scaling method
           ),
         ],
       ),
